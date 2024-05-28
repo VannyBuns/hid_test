@@ -15,37 +15,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
 
-#ifndef _HID_H_
-#define _HID_H_
+#ifndef HID_H
+#define HID_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "common/types.h"
-#include "common/common.h"
-#include "dynamic_libs/os_functions.h"
-#include "dynamic_libs/syshid_functions.h"
-#include "dynamic_libs/vpad_functions.h"
+#include <nsyshid/hid.h>
 
-typedef struct _my_cb_user{
-	unsigned char *buf;
-	unsigned int transfersize;
+typedef struct _my_cb_user {
+    unsigned char *buffer;
+    unsigned int transfersize;
     unsigned int handle;
-	HIDDevice * device;
-}my_cb_user;
+    HIDDevice *device;
+} my_cb_user;
 
 void hid_init();
-
 void hid_deinit();
-
-
-void my_read_cb(u32 handle,s32 error,u8 *p_buffer,u32 bytes_transfered,void *p_user);
-s32 my_attach_cb(HIDClient *p_client, HIDDevice *p_device, u32 attach);
-
+void my_read_cb(uint32_t handle, int32_t error, uint8_t *buffer, uint32_t bytesTransferred, void *userContext);
+int32_t my_attach_cb(HIDClient *client, HIDDevice *device, uint32_t attach);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _HID_H_ */
+#endif /* HID_H */

@@ -20,79 +20,77 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <whb/log.h>
 #include "hid.h"
 #include "common/retain_vars.h"
-#include "utils/logger.h"
 
-void hid_init(){
+void hid_init() {
     HIDSetup();
     HIDAddClient(&gHIDClient, my_attach_cb);
 }
 
-void hid_deinit(){
+void hid_deinit() {
     HIDDelClient(&gHIDClient);
 }
 
-#define SWAP16(x) ((x>>8) | ((x&0xFF)<<8))
-#define SWAP8(x) ((x>>4) | ((x&0xF)<<4))
-s32 my_attach_cb(HIDClient *p_client, HIDDevice *p_device, u32 attach){
-    if(attach){
-        log_printf("vid %04x pid %04x connected\n", SWAP16(p_device->vid),SWAP16(p_device->pid));
-        log_printf("interface index  %02x\n", p_device->interface_index);
-        log_printf("sub class        %02x\n", p_device->sub_class);
-        log_printf("protocol         %02x\n", p_device->protocol);
-        log_printf("max packet in    %02x\n", p_device->max_packet_size_rx);
-        log_printf("max packet out   %02x\n", p_device->max_packet_size_tx);
-    }
-    if(!attach){
-        log_printf("vid %04x pid %04x disconnected\n", SWAP16(p_device->vid),SWAP16(p_device->pid));
-    }
+#define SWAP16(x) ((x >> 8) | ((x & 0xFF) << 8))
+#define SWAP8(x) ((x >> 4) | ((x & 0xF) << 4))
 
-    if(attach){
-        int bufSize = 64;
+int32_t my_attach_cb(HIDClient *client, HIDDevice *device, uint32_t attach) {
+    if (attach) {
+        WHBLogPrintf("vid %04x pid %04x connected\n", SWAP16(device->vid), SWAP16(device->pid));
+        WHBLogPrintf("interface index  %02x\n", device->interfaceIndex);
+        WHBLogPrintf("sub class        %02x\n", device->subClass);
+        WHBLogPrintf("protocol         %02x\n", device->protocol);
+        WHBLogPrintf("max packet in    %02x\n", device->maxPacketSizeRx);
+        WHBLogPrintf("max packet out   %02x\n", device->maxPacketSizeTx);
 
-        unsigned char *buf = memalign(64,bufSize);
-        memset(buf,0,bufSize);
-        my_cb_user *usr = memalign(64,sizeof(my_cb_user));
+        int bufferSize = 64;
+        unsigned char *buffer = memalign(64, bufferSize);
+        memset(buffer, 0, bufferSize);
+        my_cb_user *usr = memalign(64, sizeof(my_cb_user));
 
-        usr->buf = buf;
-        usr->device = p_device;
-        usr->transfersize = p_device->max_packet_size_rx;
-        usr->handle = p_device->handle;
+        usr->buffer = buffer;
+        usr->device = device;
+        usr->transfersize = device->maxPacketSizeRx;
+        usr->handle = device->handle;
 
-        if(SWAP16(p_device->vid) == 0x057e && SWAP16(p_device->pid) == 0x0337){
-            buf[0] = 0x13;
-            HIDWrite(p_device->handle, usr->buf, 1, NULL,NULL);
+        if (SWAP16(device->vid) == 0x057e && SWAP16(device->pid) == 0x0337) {
+            buffer[0] = 0x13;
+            HIDWrite(device->handle, usr->buffer, 1, NULL, NULL);
         }
 
-        HIDRead(p_device->handle, usr->buf, p_device->max_packet_size_rx, my_read_cb, usr);
-
+        HIDRead(device->handle, usr->buffer, device->maxPacketSizeRx, my_read_cb, usr);
         return HID_DEVICE_ATTACH;
-    }else{
-        my_cb_user * user_data = NULL;
+    } else {
+        WHBLogPrintf("vid %04x pid %04x disconnected\n", SWAP16(device->vid), SWAP16(device->pid));
 
-        if(user_data){
-            if(user_data->buf){
-                free(user_data->buf);
-                user_data->buf = NULL;
+        if (hid_callback_data) {
+            my_cb_user *user_data = hid_callback_data;
+            if (user_data->buffer) {
+                free(user_data->buffer);
+                user_data->buffer = NULL;
             }
             free(user_data);
-            user_data = NULL;
+            hid_callback_data = NULL;
         }
     }
-	return HID_DEVICE_DETACH;
+    return HID_DEVICE_DETACH;
 }
 
-void my_read_cb(u32 handle,s32 error,u8 *p_buffer,u32 bytes_transfered,void *p_user)
-{
-	if(error == 0 && p_user != NULL )
-	{
-		my_cb_user *usr = (my_cb_user*)p_user;
-		hid_callback_data = usr;
-		unsigned char*  buffer = usr->buf;
-		if(buffer != NULL){
-            log_printf("data: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
-		}
-        HIDRead(handle, usr->buf, bytes_transfered, my_read_cb, usr);
-	}
+void my_read_cb(uint32_t handle, int32_t error, uint8_t *buffer, uint32_t bytesTransferred, void *userContext) {
+    if (error == 0 && userContext != NULL) {
+        my_cb_user *usr = (my_cb_user*)userContext;
+        hid_callback_data = usr;
+        unsigned char*  buffer = usr->buffer;
+        if (buffer != NULL) {
+            WHBLogPrintf("data: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n", 
+                          buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], 
+                          buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
+        }
+        // Reinitialize the read operation
+        HIDRead(handle, usr->buffer, usr->transfersize, my_read_cb, usr);
+    } else {
+        WHBLogPrintf("HID read error: %d\n", error);
+    }
 }

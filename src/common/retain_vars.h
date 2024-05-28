@@ -17,7 +17,7 @@
 #ifndef RETAINS_VARS_H_
 #define RETAINS_VARS_H_
 
-#include "dynamic_libs/syshid_functions.h"
+#include <nsyshid/hid.h>
 #include "utils/hid.h"
 
 extern HIDClient gHIDClient;

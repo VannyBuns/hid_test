@@ -15,9 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
 
-#include <gctypes.h>
 
 #include "retain_vars.h"
 
-HIDClient gHIDClient __attribute__((section(".data")));
-my_cb_user * hid_callback_data __attribute__((section(".data"))) = NULL;
+HIDClient gHIDClient;
+my_cb_user * hid_callback_data = NULL;

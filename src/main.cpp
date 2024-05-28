@@ -2,97 +2,104 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <malloc.h>
-#include "main.h"
-#include "dynamic_libs/os_functions.h"
-#include "dynamic_libs/gx2_functions.h"
-#include "dynamic_libs/syshid_functions.h"
-#include "dynamic_libs/vpad_functions.h"
-#include "dynamic_libs/socket_functions.h"
-#include "dynamic_libs/sys_functions.h"
-#include "utils/hid.h"
+#include <nsyshid/hid.h>
+#include <coreinit/internal.h>
+#include <coreinit/screen.h>
+#include <coreinit/memory.h>
+#include <coreinit/debug.h>
+#include <coreinit/thread.h>
+#include <whb/proc.h>
+#include <whb/log.h>
+#include <whb/log_udp.h>
+#include <vpad/input.h>
 #include "common/retain_vars.h"
-#include "utils/logger.h"
+#include "utils/hid.h"
 
-#define PRINT_TEXT1(x, y, str) { OSScreenPutFontEx(1, x, y, str); OSScreenPutFontEx(0, x, y, str); }
-#define PRINT_TEXT2(x, y, _fmt, ...) { __os_snprintf(msg, 80, _fmt, __VA_ARGS__); OSScreenPutFontEx(0, x, y, msg);OSScreenPutFontEx(1, x, y, msg); }
+#define PRINT_TEXT1(x, y, str) { OSScreenPutFontEx(SCREEN_DRC, x, y, str); OSScreenPutFontEx(SCREEN_TV, x, y, str); }
+#define PRINT_TEXT2(x, y, _fmt, ...) { __os_snprintf(msg, 80, _fmt, __VA_ARGS__); OSScreenPutFontEx(SCREEN_TV, x, y, msg); OSScreenPutFontEx(SCREEN_DRC, x, y, msg); }
 
 /* Entry point */
-extern "C" int Menu_Main(void)
+void DisplayScreen();
+
+int main(int argc, char **argv)
 {
-    //!*******************************************************************
-    //!                   Initialize function pointers                   *
-    //!*******************************************************************
-    //! do OS (for acquire) and sockets first so we got logging
-    InitOSFunctionPointers();
-    InitSocketFunctionPointers();
-    InitSysFunctionPointers();
-    InitSysHIDFunctionPointers();
-    InitVPadFunctionPointers();
+    WHBLogUdpInit();
+    WHBLogPrint("192.168.0.181");
 
-    log_init("192.168.0.181");
-
-    log_printf("HID-TEST by Maschell. Building time: %s %s\n\n",__DATE__,__TIME__);
+    WHBLogPrintf("Starting HID-TEST WUTPort by VannyBuns. Building time: %s %s\n\n", __DATE__, __TIME__);
 
     hid_init();
+    WHBLogPrintf("HID Initialized.\n");
 
     DisplayScreen();
-
+    
     hid_deinit();
-    log_deinit();
-    return EXIT_SUCCESS;
+    WHBLogPrintf("HID Deinitialized.\n");
+    
+    WHBLogUdpDeinit();
+    
+    return 0;
 }
+
 #define SWAP16(x) ((x>>8) | ((x&0xFF)<<8))
 #define SWAP8(x) ((x>>4) | ((x&0xF)<<4))
+
 void DisplayScreen(){
-    // Prepare screen
     int screen_buf0_size = 0;
 
     // Init screen and screen buffers
     OSScreenInit();
-    screen_buf0_size = OSScreenGetBufferSizeEx(0);
-    OSScreenSetBufferEx(0, (void *)0xF4000000);
-    OSScreenSetBufferEx(1, (void *)(0xF4000000 + screen_buf0_size));
+    screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
+    void* screen_buffer_tv = memalign(0x40, screen_buf0_size);
+    void* screen_buffer_drc = memalign(0x40, screen_buf0_size);
 
-    OSScreenEnableEx(0, 1);
-    OSScreenEnableEx(1, 1);
+    OSScreenSetBufferEx(SCREEN_TV, screen_buffer_tv);
+    OSScreenSetBufferEx(SCREEN_DRC, screen_buffer_drc);
+
+    OSScreenEnableEx(SCREEN_TV, 1);
+    OSScreenEnableEx(SCREEN_DRC, 1);
 
     // Clear screens
-    OSScreenClearBufferEx(0, 0);
-    OSScreenClearBufferEx(1, 0);
+    OSScreenClearBufferEx(SCREEN_TV, 0);
+    OSScreenClearBufferEx(SCREEN_DRC, 0);
 
     // Flip buffers
-    OSScreenFlipBuffersEx(0);
-    OSScreenFlipBuffersEx(1);
+    OSScreenFlipBuffersEx(SCREEN_TV);
+    OSScreenFlipBuffersEx(SCREEN_DRC);
 
     char* msg = (char*) malloc(80);
 
-    VPADData vpad_data;
-    s32 error;
-    do{
+    WHBLogPrintf("Entering main loop...\n");
+    do {
         // Refresh screens
-        OSScreenFlipBuffersEx(1);
-        OSScreenClearBufferEx(1, 0);
-        OSScreenFlipBuffersEx(0);
-        OSScreenClearBufferEx(0, 0);
+        OSScreenFlipBuffersEx(SCREEN_DRC);
+        OSScreenClearBufferEx(SCREEN_DRC, 0);
+        OSScreenFlipBuffersEx(SCREEN_TV);
+        OSScreenClearBufferEx(SCREEN_TV, 0);
 
         // Read vpad
-        VPADRead(0, &vpad_data, 1, &error);
+        VPADStatus vpad_status;
+        int vpad_read_result = VPADRead(VPAD_CHAN_0, &vpad_status, 1, NULL);
+        if (vpad_read_result != 0) {
+            WHBLogPrintf("Error reading VPAD: %d\n", vpad_read_result);
+        }
+        
         int i = 0;
-        PRINT_TEXT2(0, i, "HID-TEST - by Maschell - %s %s",__DATE__,__TIME__); i++;  i++;
-        if(hid_callback_data != NULL){
-            unsigned char * buffer = hid_callback_data->buf;
-            if(buffer != NULL){
-                HIDDevice * p_device = hid_callback_data->device;
+        PRINT_TEXT2(0, i, "HID-TEST WUTPort - by VannyBuns - %s %s", __DATE__, __TIME__); i++; i++;
+        if (hid_callback_data != NULL) {
+            unsigned char *buffer = hid_callback_data->buffer;
+            if (buffer != NULL) {
+                HIDDevice *device = hid_callback_data->device;
 
-                PRINT_TEXT2(0, i, "vid              %04x\n", SWAP16(p_device->vid)); i++;
-                PRINT_TEXT2(0, i, "pid              %04x\n", SWAP16(p_device->pid)); i++;
-                PRINT_TEXT2(0, i, "interface index  %02x\n", p_device->interface_index);i++;
-                PRINT_TEXT2(0, i, "sub class        %02x\n", p_device->sub_class);i++;
-                PRINT_TEXT2(0, i, "protocol         %02x\n", p_device->protocol);i++;
-                PRINT_TEXT2(0, i, "max packet in    %02x\n", p_device->max_packet_size_rx);i++;
-                PRINT_TEXT2(0, i, "max packet out   %02x\n", p_device->max_packet_size_tx);i++;
+                PRINT_TEXT2(0, i, "vid              %04x\n", SWAP16(device->vid)); i++;
+                PRINT_TEXT2(0, i, "pid              %04x\n", SWAP16(device->pid)); i++;
+                PRINT_TEXT2(0, i, "interface index  %02x\n", device->interfaceIndex); i++;
+                PRINT_TEXT2(0, i, "sub class        %02x\n", device->subClass); i++;
+                PRINT_TEXT2(0, i, "protocol         %02x\n", device->protocol); i++;
+                PRINT_TEXT2(0, i, "max packet in    %02x\n", device->maxPacketSizeRx); i++;
+                PRINT_TEXT2(0, i, "max packet out   %02x\n", device->maxPacketSizeTx); i++;
 
-                PRINT_TEXT2(0, i, "bytes transfered: %d", hid_callback_data->transfersize); i++;
+                PRINT_TEXT2(0, i, "bytes transferred: %d", hid_callback_data->transfersize); i++;
                 i++;
                 PRINT_TEXT1(0, i, "Pos: 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15"); i++;
                 PRINT_TEXT1(0, i, "----------------------------------------------------"); i++;
@@ -101,14 +108,17 @@ void DisplayScreen(){
             }
         }
         PRINT_TEXT1(0, 17, "Press HOME to return to the Homebrew Launcher");
-        if(vpad_data.btns_h & VPAD_BUTTON_HOME){
-            break;
-        }
 
-    }while(1);
+        // Delay for debugging
+        OSSleepTicks(OSMillisecondsToTicks(50)); // 50 milliseconds
 
-    OSScreenFlipBuffersEx(0);
-    OSScreenFlipBuffersEx(1);
+    } while (WHBProcIsRunning());
+
+    WHBLogPrintf("Exiting main loop...\n");
+    OSScreenFlipBuffersEx(SCREEN_TV);
+    OSScreenFlipBuffersEx(SCREEN_DRC);
 
     free(msg);
+    free(screen_buffer_tv);
+    free(screen_buffer_drc);
 }
