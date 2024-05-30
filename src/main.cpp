@@ -8,43 +8,28 @@
 #include <coreinit/memory.h>
 #include <coreinit/debug.h>
 #include <coreinit/thread.h>
+#include <sndcore2/core.h>
 #include <whb/proc.h>
 #include <whb/log.h>
-#include <whb/log_udp.h>
 #include <vpad/input.h>
 #include "common/retain_vars.h"
 #include "utils/hid.h"
 
 #define PRINT_TEXT1(x, y, str) { OSScreenPutFontEx(SCREEN_DRC, x, y, str); OSScreenPutFontEx(SCREEN_TV, x, y, str); }
 #define PRINT_TEXT2(x, y, _fmt, ...) { __os_snprintf(msg, 80, _fmt, __VA_ARGS__); OSScreenPutFontEx(SCREEN_TV, x, y, msg); OSScreenPutFontEx(SCREEN_DRC, x, y, msg); }
-
-/* Entry point */
-void DisplayScreen();
+#define SWAP16(x) ((x>>8) | ((x&0xFF)<<8))
+#define SWAP8(x) ((x>>4) | ((x&0xF)<<4))
 
 int main(int argc, char **argv)
 {
-    WHBLogUdpInit();
-    WHBLogPrint("192.168.0.181");
+    WHBProcInit();
+    AXInit();
 
     WHBLogPrintf("Starting HID-TEST WUTPort by VannyBuns. Building time: %s %s\n\n", __DATE__, __TIME__);
 
     hid_init();
     WHBLogPrintf("HID Initialized.\n");
 
-    DisplayScreen();
-    
-    hid_deinit();
-    WHBLogPrintf("HID Deinitialized.\n");
-    
-    WHBLogUdpDeinit();
-    
-    return 0;
-}
-
-#define SWAP16(x) ((x>>8) | ((x&0xFF)<<8))
-#define SWAP8(x) ((x>>4) | ((x&0xF)<<4))
-
-void DisplayScreen(){
     int screen_buf0_size = 0;
 
     // Init screen and screen buffers
@@ -70,7 +55,9 @@ void DisplayScreen(){
     char* msg = (char*) malloc(80);
 
     WHBLogPrintf("Entering main loop...\n");
-    do {
+
+    while (WHBProcIsRunning())
+	{
         // Refresh screens
         OSScreenFlipBuffersEx(SCREEN_DRC);
         OSScreenClearBufferEx(SCREEN_DRC, 0);
@@ -83,7 +70,7 @@ void DisplayScreen(){
         if (vpad_read_result != 0) {
             WHBLogPrintf("Error reading VPAD: %d\n", vpad_read_result);
         }
-        
+
         int i = 0;
         PRINT_TEXT2(0, i, "HID-TEST WUTPort - by VannyBuns - %s %s", __DATE__, __TIME__); i++; i++;
         if (hid_callback_data != NULL) {
@@ -107,18 +94,26 @@ void DisplayScreen(){
 
             }
         }
-        PRINT_TEXT1(0, 17, "Press HOME to return to the Homebrew Launcher");
-
-        // Delay for debugging
-        OSSleepTicks(OSMillisecondsToTicks(50)); // 50 milliseconds
-
-    } while (WHBProcIsRunning());
-
+        PRINT_TEXT1(0, 17, "Press HOME to return to the Wii U Menu");
+    }
     WHBLogPrintf("Exiting main loop...\n");
+
+    // Ensure buffers are flipped one last time
     OSScreenFlipBuffersEx(SCREEN_TV);
+    OSScreenFlipBuffersEx(SCREEN_DRC);
+	OSScreenClearBufferEx(SCREEN_TV, 0);
+    OSScreenClearBufferEx(SCREEN_DRC, 0);
+	OSScreenFlipBuffersEx(SCREEN_TV);
     OSScreenFlipBuffersEx(SCREEN_DRC);
 
     free(msg);
     free(screen_buffer_tv);
     free(screen_buffer_drc);
+
+    hid_deinit();
+    WHBLogPrintf("HID Deinitialized.\n");
+
+    AXQuit();
+    WHBProcShutdown();
+    return 0;
 }
