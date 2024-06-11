@@ -13,7 +13,7 @@ TOPDIR ?= $(CURDIR)
 # APP_SHORTNAME sets the short name of the application
 # APP_AUTHOR sets the author of the application
 #-------------------------------------------------------------------------------
-#APP_NAME	:= HIDTest
+#APP_NAME	:= HID-Test
 #APP_SHORTNAME	:= hid_test
 #APP_AUTHOR	:= Maschell
 
