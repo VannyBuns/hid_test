@@ -19,22 +19,23 @@
 #define HID_H
 
 #ifdef __cplusplus
-extern "C" {
+	extern "C" {
 #endif
 
 #include <nsyshid/hid.h>
 
-typedef struct _my_cb_user {
+typedef struct _my_cb_user 
+{
     unsigned char *buffer;
     unsigned int transfersize;
     unsigned int handle;
     HIDDevice *device;
 } my_cb_user;
 
-void hid_init();
-void hid_deinit();
-void my_read_cb(uint32_t handle, int32_t error, uint8_t *buffer, uint32_t bytesTransferred, void *userContext);
-int32_t my_attach_cb(HIDClient *client, HIDDevice *device, uint32_t attach);
+	void hid_init();
+	void hid_deinit();
+	void my_read_cb(uint32_t handle, int32_t error, uint8_t *buffer, uint32_t bytesTransferred, void *userContext);
+	int32_t my_attach_cb(HIDClient *client, HIDDevice *device, uint32_t attach);
 
 #ifdef __cplusplus
 }

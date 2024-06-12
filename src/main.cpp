@@ -29,52 +29,50 @@ int main(int argc, char **argv)
 
     hid_init();
     WHBLogPrintf("HID Initialized.\n");
+	
+		// Init screen and screen buffers
+		int screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
+		void* screen_buffer_tv = memalign(0x100, screen_buf0_size);
+		void* screen_buffer_drc = memalign(0x100, screen_buf0_size);
 
-    // Init screen and screen buffers
-    OSScreenInit();
-    int screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
-    void* screen_buffer_tv = memalign(0x100, screen_buf0_size);
-    void* screen_buffer_drc = memalign(0x100, screen_buf0_size);
-
-    if (!screen_buffer_tv || !screen_buffer_drc) {
-        WHBLogPrintf("Failed to allocate screen buffers.\n");
-        return -1;
-    }
-
-    OSScreenSetBufferEx(SCREEN_TV, screen_buffer_tv);
-    OSScreenSetBufferEx(SCREEN_DRC, screen_buffer_drc);
-
-    OSScreenClearBufferEx(SCREEN_TV, 0);
-    OSScreenClearBufferEx(SCREEN_DRC, 0);
-    OSScreenFlipBuffersEx(SCREEN_TV);
-    OSScreenFlipBuffersEx(SCREEN_DRC);
-
-    char* msg = (char*) malloc(80);
-
-    WHBLogPrintf("Entering main loop...\n");
+		char* msg = (char*) malloc(80);
+		
+		WHBLogPrintf("Entering main loop...\n");
 
     while (WHBProcIsRunning())
     {
-       
+		OSScreenInit();
+		
+		if (!screen_buffer_tv || !screen_buffer_drc) 
+		{
+			WHBLogPrintf("Failed to allocate screen buffers.\n");
+			return -1;
+		}
+
+		OSScreenSetBufferEx(SCREEN_TV, screen_buffer_tv);
+		OSScreenSetBufferEx(SCREEN_DRC, screen_buffer_drc);
+		
 		OSScreenEnableEx(SCREEN_TV, 1);
 		OSScreenEnableEx(SCREEN_DRC, 1);
 
-	   // Clear the screen
-        OSScreenClearBufferEx(SCREEN_TV, 0);
-        OSScreenClearBufferEx(SCREEN_DRC, 0);
-
-        // Read vpad
+		OSScreenClearBufferEx(SCREEN_TV, 0);
+		OSScreenClearBufferEx(SCREEN_DRC, 0);
+		
+		// Read vpad
         VPADStatus vpad_status;
         int vpad_read_result = VPADRead(VPAD_CHAN_0, &vpad_status, 1, NULL);
-        if (vpad_read_result != 0) {
+        if (vpad_read_result != 0) 
+		{
             WHBLogPrintf("Error reading VPAD: %d\n", vpad_read_result);
         }
 
         int i = 0;
         PRINT_TEXT2(0, i, "HID-TEST - by VannyBuns - %s %s", __DATE__, __TIME__); i++; i++;
-        if (hid_callback_data != NULL) {
+        if (hid_callback_data != NULL) 
+		{
             unsigned char *buffer = hid_callback_data->buffer;
-            if (buffer != NULL) {
+            if (buffer != NULL) 
+			{
                 HIDDevice *device = hid_callback_data->device;
 
                 PRINT_TEXT2(0, i, "vid              %04x\n", SWAP16(device->vid)); i++;
@@ -94,30 +92,17 @@ int main(int argc, char **argv)
             }
         }
         PRINT_TEXT1(0, 17, "Press HOME to return to the Wii U Menu");
-
-        // Flip buffers to display the changes
-        OSScreenFlipBuffersEx(SCREEN_TV);
-        OSScreenFlipBuffersEx(SCREEN_DRC);
+			OSScreenFlipBuffersEx(SCREEN_TV);
+			OSScreenFlipBuffersEx(SCREEN_DRC);
     }
 		WHBLogPrintf("Exiting main loop...\n");
 
-	     if (msg) {
-        free(msg);
-        msg = NULL;
-		}
-    
-		if (screen_buffer_tv) {
-        free(screen_buffer_tv);
-        screen_buffer_tv = NULL;
-		}
-    
-		if (screen_buffer_drc) {
-        free(screen_buffer_drc);
-        screen_buffer_drc = NULL;
-		}
+		free(msg);
+		free(screen_buffer_tv);
+		free(screen_buffer_drc);
 							
-		hid_deinit();
 		HIDTeardown();
+		hid_deinit();
 		WHBLogPrintf("HID Deinitialized.\n");
 									
 		AXQuit();
