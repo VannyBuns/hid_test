@@ -148,7 +148,7 @@ $(BUILD):
 #-------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).wuhb $(TARGET).rpx $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).wuhb $(TARGET).rpx
 
 #-------------------------------------------------------------------------------
 else
@@ -162,7 +162,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 all	:	$(OUTPUT).wuhb
 
 $(OUTPUT).wuhb	:	$(OUTPUT).rpx
-$(OUTPUT).elf	:	$(OFILES)
+$(OUTPUT).rpx	:	$(OFILES)
 
 $(OFILES_SRC)	: $(HFILES_BIN)
 
