@@ -31,29 +31,29 @@ int main(int argc, char **argv)
     WHBLogPrintf("HID Initialized.\n");
 	
 		// Init screen and screen buffers
+		OSScreenInit();
 		int screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
 		void* screen_buffer_tv = memalign(0x100, screen_buf0_size);
 		void* screen_buffer_drc = memalign(0x100, screen_buf0_size);
-
-		char* msg = (char*) malloc(80);
-		
-		WHBLogPrintf("Entering main loop...\n");
-
-    while (WHBProcIsRunning())
-    {
-		OSScreenInit();
-		
-		if (!screen_buffer_tv || !screen_buffer_drc) 
-		{
-			WHBLogPrintf("Failed to allocate screen buffers.\n");
-			return -1;
-		}
 
 		OSScreenSetBufferEx(SCREEN_TV, screen_buffer_tv);
 		OSScreenSetBufferEx(SCREEN_DRC, screen_buffer_drc);
 		
 		OSScreenEnableEx(SCREEN_TV, 1);
 		OSScreenEnableEx(SCREEN_DRC, 1);
+	
+		char* msg = (char*) malloc(80);
+		
+		WHBLogPrintf("Entering main loop...\n");
+
+    while (WHBProcIsRunning())
+    {
+		
+		if (!screen_buffer_tv || !screen_buffer_drc) 
+		{
+			WHBLogPrintf("Failed to allocate screen buffers.\n");
+			return -1;
+		}
 
 		OSScreenClearBufferEx(SCREEN_TV, 0);
 		OSScreenClearBufferEx(SCREEN_DRC, 0);
